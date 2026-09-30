@@ -33,12 +33,16 @@ label{font-size:12px;color:#555;display:block;margin:6px 0 2px}
 .modal{position:fixed;inset:0;background:#0007;display:flex;align-items:center;justify-content:center;z-index:20;padding:10px}
 .modal>div{background:#fff;border-radius:14px;padding:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
 .muted{color:#777;font-size:13px}.right{float:right}
+.phone{max-width:430px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #ccc;box-shadow:0 4px 16px #0003;display:flex;flex-direction:column;height:78vh;min-height:560px}
+.ph-h{background:#6c1a94;color:#fff;padding:16px 14px;display:flex;justify-content:space-between;align-items:center;font-size:19px}
+.ph-b{flex:1;overflow:auto}.sec{background:#ececf1;color:#333;padding:6px 12px;font-size:16px;border-bottom:1px solid #ddd}
+.ph-t{display:flex;border-top:1px solid #ddd;background:#fff}.ph-t button{flex:1;border:0;background:none;padding:6px 0;font-size:12px;color:#6c1a94;cursor:pointer}.ph-t button.on{font-weight:700}
 @media print{header,nav,.noprint{display:none}}
 </style></head><body>
 <header><b>CareFlow</b><span class="tag">PRACTICE REPLICA · DUMMY DATA</span>
 <span style="flex:1"></span>
 <label style="color:#fff;margin:0">Role</label>
-<select id="role" onchange="setRole(this.value)"><option value="manager">Care Manager</option><option value="coord">Coordinator</option><option value="carer">Carer (mobile view)</option></select>
+<select id="role" onchange="setRole(this.value)"><option value="manager">Care Manager</option><option value="coord">Coordinator</option><option value="carer">Carer (mobile view)</option><option value="app">Mobile app (Bookings / Customers / Employees)</option></select>
 <button class="btn s sm" onclick="resetData()">Reset demo data</button></header>
 <nav id="nav"></nav><main id="main"></main>
 <script>
@@ -107,7 +111,8 @@ const TABS={manager:[['dash','Dashboard'],['clients','Clients'],['sched','Schedu
 function setRole(r){role=r;tab=TABS[r][0][1]&&TABS[r][0][0];go(tab)}
 function go(t,c){tab=t;cur=c||null;
  document.getElementById('nav').innerHTML=TABS[role].map(x=>`<button class="${x[0]==t?'on':''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
- const v={dash,clients,client,sched,emar,inc,staff,docs,fin,rep,ai,myday}[t];
+ if(role=='app')document.getElementById('nav').innerHTML='';
+ const v={dash,clients,client,sched,emar,inc,staff,docs,fin,rep,ai,myday,abook:()=>abook(),acust:()=>acust(),aemp:()=>aemp()}[t];
  document.getElementById('main').innerHTML='<div class="banner">Training replica for practice only. All names and data are fictional. Data stays in this browser.</div>'+v();window.scrollTo(0,0)}
 function modal(html){const m=document.createElement('div');m.className='modal';m.id='mdl';m.innerHTML='<div>'+html+'</div>';m.onclick=e=>{if(e.target==m)m.remove()};document.body.appendChild(m)}
 const closeM=()=>document.getElementById('mdl')?.remove();
@@ -237,5 +242,41 @@ function aiPat(){const out=[];const byType={};S.incidents.forEach(i=>byType[i.ty
  out.push(S.mar.filter(m=>!m.code).length+' unrecorded medication doses need review');
  out.push('Carers with expired training: '+(S.staff.filter(s=>Object.values(s.training).some(d=>d<today())).map(s=>s.ini).join(', ')||'none'));
  aiout.innerHTML='<ul>'+out.map(o=>`<li>${o}</li>`).join('')+'</ul>'}
+// ---------- MOBILE APP SCREENS (Customers / Employees / Bookings) – all names & addresses fictional ----------
+const AC=[['Margaret','Ashdown','5 Willow Close, Fakeford, ZZ1 4AB',1,1,0],['Harold','Bexley','2 Orchard Road, Fakeford, ZZ1 2CD',0,0,1],['Doris','Calloway','34 Mill Lane, Nowhereton, ZZ2 1EF',1,1,0],['Ernest','Dunmore','14 Elm Grove, Nowhereton, ZZ2 3GH',1,1,0],['Winifred','Ellery','9 Hazel Way, Fakeford, ZZ1 5JK',1,1,0],['Arthur','Fenwick','7 Rosebank Close, Sampleton, ZZ3 2LM',0,1,0],['Gladys','Hartwell','21 Church Street, Sampleton, ZZ3 6NP',1,0,0],['Percy','Ingram','3 The Green, Fakeford, ZZ1 7QR',0,1,0],['Joan','Kimberley','18 Station Road, Nowhereton, ZZ2 8ST',1,1,0],['Reginald','Lovell','Rose Cottage, Long Lane, Sampleton, ZZ3 9UV',0,0,0]].map((a,i)=>({id:i,first:a[0],last:a[1],addr:a[2],allergy:a[3],key:a[4],paused:a[5]}));
+const AE=[['Tara','Brook','Careworker'],['Nadia','Bright','Supervisor'],['Jonas','Chambers','Careworker'],['Rhona','Cole','Care Manager'],['Sam','Dorsey','Careworker'],['Maya','Eckley','Careworker'],['Jade','Fielding','Careworker'],['Owen','Grant','Careworker']].map((a,i)=>({id:i,first:a[0],last:a[1],role:a[2]}));
+const ME={first:'Alex',last:'Testerman',role:'Super user'};
+const SLOTS=[['06:00',60],['07:10',45],['09:00',30],['12:00',15],['17:30',30],['20:00',30]];
+function appBookings(){const out=[];for(let d=0;d<21;d++){const date=addDays(today(),d);
+ AC.forEach((c,i)=>{if((i+d)%3==0&&!c.paused){const sl=SLOTS[(i+d)%SLOTS.length];const car=AE.filter(e=>e.role!='Care Manager')[(i*2+d)%7];out.push({date,c,start:sl[0],dur:sl[1],car,office:false})}});
+ if(d%3==1)out.push({date,c:{first:'Office',last:'Supervision',addr:'1 Practice Street, Fakeford, ZZ1 1AA',allergy:0,key:0},start:'12:00',dur:15,car:null,office:true});}
+ return out}
+let aSel=today(),aQ='';
+const initials=c=>(c.first[0]+c.last[0]).toUpperCase();
+const avatar=(c,big)=>`<div style="width:${big||46}px;height:${big||46}px;border-radius:50%;background:#ece8f4;color:#6c1a94;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">${initials(c)}</div>`;
+const person=`<div style="width:46px;height:46px;border-radius:50%;background:#bbb;flex:none;position:relative;overflow:hidden"><div style="position:absolute;left:15px;top:8px;width:16px;height:16px;border-radius:50%;background:#666"></div><div style="position:absolute;left:9px;top:26px;width:28px;height:24px;border-radius:14px 14px 0 0;background:#666"></div></div>`;
+function appShell(active,title,body,left,right){const tabs=[['abook','📅','Bookings'],['acust','👥','Customers'],['aemp','🪪','Employees']];
+ return `<div class="phone"><div class="ph-h"><span style="width:60px">${left||''}</span><b>${title}</b><span style="width:60px;text-align:right">${right||''}</span></div><div class="ph-b">${body}</div><div class="ph-t">${tabs.map(t=>`<button class="${t[0]==active?'on':''}" onclick="go('${t[0]}')"><span style="font-size:22px">${t[1]}</span><br>${t[0]==active?t[2]:'&nbsp;'}</button>`).join('')}<button><span style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#ece8f4;color:#6c1a94;font-weight:700">AT</span></button></div></div>`}
+function abook(){const wd='SMTWTFS';const days=[];for(let i=-1;i<6;i++)days.push(addDays(today(),i));
+ const all=appBookings();
+ const strip=days.map(d=>{const has=all.some(b=>b.date==d);const dt=new Date(d);const sel=d==aSel;
+  return `<div onclick="aSel='${d}';go('abook')" style="text-align:center;flex:1;cursor:pointer;color:#555"><div style="font-size:12px">${wd[dt.getDay()]}</div><div style="margin:2px auto;width:40px;height:40px;line-height:40px;border-radius:50%;font-size:20px;${sel?'background:#a020f0;color:#fff;font-weight:700':''}">${dt.getDate()}</div><div style="height:6px;color:#a020f0;font-size:10px">${has?'●':''}</div></div>`}).join('');
+ const list=all.filter(b=>b.date>=aSel&&b.date<=addDays(aSel,14)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+ const g={};list.forEach(b=>(g[b.date]=g[b.date]||[]).push(b));
+ const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+ const body=`<div style="display:flex;padding:8px 4px;border-bottom:1px solid #ddd">${strip}</div>`+(Object.entries(g).map(([d,bs])=>`<div style="display:flex;gap:8px;padding:10px 8px"><div style="width:44px;text-align:center"><div style="font-size:30px">${new Date(d).getDate()}</div><div style="color:#555">${dn[new Date(d).getDay()]}</div></div><div style="flex:1">${bs.map(b=>`<div style="background:#f6f6f7;border-radius:14px;padding:12px;margin-bottom:10px;display:flex;gap:8px"><div style="width:26px;height:26px;border:2px solid #ddd;border-radius:50%;flex:none;margin-top:30px;background:#fff" onclick="this.style.background=this.style.background=='rgb(46, 158, 91)'?'#fff':'#2e9e5b'"></div><div style="flex:1"><div style="color:#6c1a94;font-size:14px">🕒 ${b.start} – ${endT(b.start,b.dur)} (${b.dur>=60?(b.dur/60)+'h':b.dur+'m'})</div><div style="font-weight:700;font-size:17px;margin:3px 0">${b.office?'- ':''}${b.c.first} ${b.c.last}</div><div style="font-size:13px">${b.c.addr}</div>${b.car?`<div style="margin:8px 0;background:#fff;border-radius:20px;padding:4px 10px 4px 4px;display:inline-flex;align-items:center;gap:6px;font-size:13px"><span style="width:26px;height:26px;border-radius:50%;background:#ddd;display:inline-block"></span>${b.car.first} ${b.car.last}</div>`:''}${b.c.allergy?`<div><span class="pill" style="background:#fff;color:#c0334f;border:2px solid #c0334f;padding:4px 14px;font-weight:700">✱ Allergies</span></div>`:''}</div><div style="text-align:center">${b.office?`<div style="width:46px;height:46px;border-radius:50%;background:#efe8f7;line-height:46px">🏠</div>`:avatar(b.c)}${b.c.key?`<div style="color:#6c1a94;font-size:20px;margin-top:6px">🗝</div>`:''}</div></div>`).join('')}</div></div>`).join('')||'<p style="padding:20px" class="muted">No bookings from this date.</p>');
+ return appShell('abook','Bookings',body)}
+function acust(){const list=AC.slice().sort((a,b)=>a.last.localeCompare(b.last));let cur='';
+ const rows=list.map(c=>{let h='';if(c.last[0]!=cur){cur=c.last[0];h=`<div class="sec" data-sec="${cur}">${cur}</div>`}
+  return h+`<div class="crow" data-n="${(c.first+' '+c.last+' '+c.addr).toLowerCase()}" style="display:flex;gap:12px;padding:12px;border-bottom:1px solid #e5e5e5"><div style="text-align:center">${avatar(c)}<div style="color:#6c1a94;font-size:20px">${c.key?'🗝':''}</div></div><div style="flex:1"><div style="font-size:17px">${c.first} ${c.last}</div><div style="font-size:13px;color:#444">${c.addr}</div>${c.allergy?`<div style="margin-top:6px"><span class="pill" style="background:#fff;color:#c0334f;border:2px solid #c0334f;padding:4px 14px;font-weight:700">✱ Allergies</span></div>`:''}</div>${c.paused?'<div style="color:#888;font-size:26px">⏸</div>':''}</div>`}).join('');
+ const body=`<div id="asearch" style="display:none;padding:8px"><input placeholder="Search customers" oninput="cFilter(this.value)"></div><div id="clist">${rows}</div>`;
+ return appShell('acust','Customers',body,'☰','<span onclick="alert(\'Add customer (practice): not wired up in this replica\')" style="cursor:pointer">➕</span> <span onclick="asearch.style.display=asearch.style.display==\'none\'?\'block\':\'none\'" style="cursor:pointer">🔍</span>')}
+function cFilter(q){q=q.toLowerCase();document.querySelectorAll('#clist .crow').forEach(r=>r.style.display=r.dataset.n.includes(q)?'flex':'none')}
+function aemp(){const list=AE.slice().sort((a,b)=>a.last.localeCompare(b.last));let cur='';
+ const row=(e,b)=>`<div style="display:flex;gap:12px;padding:12px;align-items:center;border-bottom:1px solid #e5e5e5">${person}<div><div style="font-size:17px;${b?'font-weight:700':''}">${e.first} ${e.last}</div><div style="font-size:13px;${b?'font-weight:700':'color:#555'}">${e.role}</div></div></div>`;
+ const body=`<div class="sec" style="background:#7a68a0;color:#fff;font-weight:700">You</div>${row(ME,1)}`+list.map(e=>{let h='';if(e.last[0]!=cur){cur=e.last[0];h=`<div class="sec">${cur}</div>`}return h+row(e)}).join('');
+ return appShell('aemp','Employees',body,'☰','🔍')}
+TABS.app=[['abook','Bookings'],['acust','Customers'],['aemp','Employees']];
+Object.assign(window,{abook,acust,aemp});
 go('dash');
 </script></body></html>
