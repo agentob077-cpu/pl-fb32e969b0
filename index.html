@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CareFlow Practice (training replica – dummy data only)</title>
+<style>
+:root{--p:#5b3a8c;--p2:#efe8f7;--g:#2e9e5b;--a:#e8a317;--r:#d64545;--b:#2f6fd0;--bg:#f5f4f8;--t:#222}
+*{box-sizing:border-box}body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--t)}
+header{background:var(--p);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header b{font-size:18px}.tag{background:#fff3;padding:2px 8px;border-radius:10px;font-size:12px}
+header select{padding:5px;border-radius:6px}
+nav{display:flex;gap:4px;overflow-x:auto;background:#fff;border-bottom:1px solid #ddd;padding:6px}
+nav button{border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;font-size:14px}
+nav button.on{background:var(--p2);color:var(--p);font-weight:700}
+main{padding:14px;max-width:1150px;margin:auto}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.kpi{font-size:30px;font-weight:800}.kpi small{display:block;font-size:13px;font-weight:400;color:#666}
+h2{margin:4px 0 10px;font-size:19px}h3{margin:8px 0;font-size:16px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #eee;font-size:14px;vertical-align:top}
+th{color:#666;font-size:12px;text-transform:uppercase}
+.pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;color:#fff;background:#888}
+.g{background:var(--g)}.a{background:var(--a)}.r{background:var(--r)}.b{background:var(--b)}
+button.btn{background:var(--p);color:#fff;border:0;padding:8px 13px;border-radius:8px;cursor:pointer;font-size:14px}
+button.btn.s{background:#e6e1ee;color:var(--p)}button.btn.d{background:var(--r)}button.btn.sm{padding:4px 9px;font-size:12px}
+input,select,textarea{padding:8px;border:1px solid #ccc;border-radius:8px;font:inherit;width:100%}
+label{font-size:12px;color:#555;display:block;margin:6px 0 2px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:150px}
+.banner{background:#fff4d6;border:1px solid #f0d78a;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.alert{border-left:5px solid var(--r);padding:6px 10px;background:#fdeeee;margin:5px 0;border-radius:4px}
+.warn{border-left-color:var(--a);background:#fff6e0}
+.ok{border-left-color:var(--g);background:#e9f7ef}
+.tl{position:relative;padding-left:14px;border-left:3px solid var(--p2);margin:0 0 10px}
+.vis{border:1px solid #e3ddee;border-radius:10px;padding:8px 10px;margin:6px 0;background:#fcfbff}
+.modal{position:fixed;inset:0;background:#0007;display:flex;align-items:center;justify-content:center;z-index:20;padding:10px}
+.modal>div{background:#fff;border-radius:14px;padding:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+.muted{color:#777;font-size:13px}.right{float:right}
+@media print{header,nav,.noprint{display:none}}
+</style></head><body>
+<header><b>CareFlow</b><span class="tag">PRACTICE REPLICA · DUMMY DATA</span>
+<span style="flex:1"></span>
+<label style="color:#fff;margin:0">Role</label>
+<select id="role" onchange="setRole(this.value)"><option value="manager">Care Manager</option><option value="coord">Coordinator</option><option value="carer">Carer (mobile view)</option></select>
+<button class="btn s sm" onclick="resetData()">Reset demo data</button></header>
+<nav id="nav"></nav><main id="main"></main>
+<script>
+// ---------- data ----------
+const K='careflow_practice_v1';
+const today=()=>new Date().toISOString().slice(0,10);
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const uid=()=>Math.random().toString(36).slice(2,9);
+function seed(){
+ const t=today();
+ const clients=[
+ ['c1','AB','Mrs A. B.',84,'Dementia, mobility','Two-step transfer with hoist. Likes tea with 1 sugar. Call son if unwell.',['Falls','Pressure sore risk'],{mobility:'Hoist',diet:'Soft',allergy:'Penicillin'}],
+ ['c2','CD','Mr C. D.',78,'Diabetes type 2','Blood sugar check pre-meal. Prompt insulin (district nurse administers).',['Diabetes','Hypo risk'],{mobility:'Frame',diet:'Diabetic',allergy:'None known'}],
+ ['c3','EF','Mrs E. F.',91,'Frailty, COPD','Oxygen at night. Personal care and breakfast. Key safe.',['Oxygen in use','Falls'],{mobility:'Wheelchair',diet:'Normal',allergy:'Latex'}],
+ ['c4','GH','Mr G. H.',69,'Stroke recovery','Encourage independence with dressing. Left-side weakness.',['Falls'],{mobility:'Stick',diet:'Normal',allergy:'None known'}],
+ ['c5','IJ','Ms I. J.',73,'Parkinson\'s','Medication time-critical. Meal prep and prompts.',['Time-critical meds','Choking'],{mobility:'Frame',diet:'Soft',allergy:'Aspirin'}],
+ ['c6','KL','Mr K. L.',88,'Dementia','Wandering risk – check door alarm. Lunch and meds prompt.',['Wandering','Falls'],{mobility:'Independent',diet:'Normal',allergy:'None known'}]
+ ].map(a=>({id:a[0],ini:a[1],name:a[2],age:a[3],cond:a[4],plan:a[5],risks:a[6],prof:a[7],rate:22.5,
+  planReview:addDays(t,a[0]=='c3'?-10:a[0]=='c5'?12:60),
+  must:{bmi:1,wl:0,acute:0},contact:'Next of kin (dummy) 07000 000000'}));
+ const staff=[['s1','JM','Jane M.','Senior carer'],['s2','TP','Tom P.','Carer'],['s3','SR','Sara R.','Carer'],['s4','LW','Liam W.','Carer'],['s5','NK','Nina K.','Carer'],['s6','DO','Dan O.','Carer'],['s7','HB','Hana B.','Carer'],['s8','VT','Vic T.','Coordinator']]
+ .map((a,i)=>({id:a[0],ini:a[1],name:a[2],role:a[3],
+  training:{'Moving & Handling':addDays(t,i==1?-5:i==3?20:200),'Medication':addDays(t,i==2?-30:150),'Safeguarding':addDays(t,i==4?9:300),'First Aid':addDays(t,120+i)},
+  dbs:addDays(t,i==5?25:400),avail:'Mon–Sun 07:00–21:00'}));
+ const times=[['07:30',30],['08:30',45],['12:00',30],['13:00',30],['17:30',45],['18:30',30],['20:30',30]];
+ const tasks={c1:['Personal care','Hoist transfer','Breakfast','Fluids'],c2:['Blood sugar check','Meal prep','Fluids'],c3:['Personal care','Breakfast','Oxygen check'],c4:['Dressing prompt','Meal prep'],c5:['Medication prompt','Meal prep'],c6:['Door alarm check','Lunch','Medication prompt']};
+ let visits=[];
+ for(let d=-2;d<=6;d++){const date=addDays(t,d);
+  clients.forEach((c,i)=>{[0,2,4].forEach((ti,j)=>{ if((i+j+d)%4==3)return;
+   const [st,dur]=times[ti+ (i%2? (j==1?1:0):0)]||times[ti];
+   const un=(d>=2&&(i+j)%3==0);
+   visits.push({id:uid(),cid:c.id,date,start:st,dur,sid:un?null:staff[(i+j+d+10)%7].id,tasks:tasks[c.id],status:d<0?'done':'planned',in:null,out:null,notes:d<0?'Visit completed as planned. Client in good spirits.':''});});});}
+ const meds=[
+ {id:uid(),cid:'c2',name:'Metformin 500mg',dose:'1 tablet',times:['08:00','18:00'],route:'Oral'},
+ {id:uid(),cid:'c5',name:'Co-careldopa 25/100',dose:'1 tablet',times:['08:00','12:00','16:00','20:00'],route:'Oral'},
+ {id:uid(),cid:'c1',name:'Paracetamol 500mg',dose:'2 tablets PRN',times:['08:00','20:00'],route:'Oral'},
+ {id:uid(),cid:'c6',name:'Donepezil 5mg',dose:'1 tablet',times:['20:00'],route:'Oral'}];
+ const mar=[];
+ meds.forEach(m=>{for(let d=-2;d<=0;d++)m.times.forEach(tm=>{ const dt=addDays(t,d);
+  if(d==0 && tm>new Date().toTimeString().slice(0,5))return;
+  mar.push({id:uid(),mid:m.id,date:dt,time:tm,code:(m.name.startsWith('Co-')&&d==-1&&tm=='12:00')?null:'Given',by:'s1',note:''});});});
+ return {clients,staff,visits,meds,mar,incidents:[
+  {id:uid(),cid:'c3',date:addDays(t,-1),type:'Fall',sev:'Medium',desc:'Found on floor by bed, no injury visible. GP advised. Family informed.',by:'s2',status:'Open',body:['Left knee']},
+ ],docs:[
+  {id:uid(),title:'Medication Policy',type:'Policy',ver:'v3.2',review:addDays(t,40)},
+  {id:uid(),title:'Safeguarding Policy',type:'Policy',ver:'v2.1',review:addDays(t,-15)},
+  {id:uid(),title:'Risk Assessment Template',type:'Template',ver:'v1.4',review:addDays(t,200)},
+  {id:uid(),title:'Incident Form',type:'Form',ver:'v1.0',review:addDays(t,300)}],
+  audit:[]};
+}
+let S=null;try{S=JSON.parse(localStorage.getItem(K)||'null')}catch(e){S=null}
+S=S||seed();
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+function resetData(){if(confirm('Reset all practice data?')){S=seed();save();go(tab)}}
+const cl=id=>S.clients.find(c=>c.id==id)||{};
+const st=id=>S.staff.find(s=>s.id==id)||{name:'UNASSIGNED',ini:'—'};
+function log(a){S.audit.unshift({t:new Date().toLocaleString('en-GB'),role,a});save()}
+function pill(txt,c){return `<span class="pill ${c}">${txt}</span>`}
+function dstat(d){const t=today();if(d<t)return pill('Expired '+d,'r');if(d<=addDays(t,30))return pill('Due '+d,'a');return pill(d,'g')}
+const endT=(s,d)=>{let [h,m]=s.split(':').map(Number);m+=d;h+=Math.floor(m/60);m%=60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')};
+// ---------- shell ----------
+let role='manager',tab='dash',cur=null,sday=today(),carerId='s2';
+const TABS={manager:[['dash','Dashboard'],['clients','Clients'],['sched','Schedule'],['emar','eMAR'],['inc','Incidents'],['staff','Staff'],['docs','Documents'],['fin','Invoicing'],['rep','Reports & Audit'],['ai','AI Assist']],
+ coord:[['dash','Dashboard'],['clients','Clients'],['sched','Schedule'],['emar','eMAR'],['inc','Incidents'],['staff','Staff']],
+ carer:[['myday','My Day'],['clients','My Clients'],['emar','eMAR'],['inc','Report incident']]};
+function setRole(r){role=r;tab=TABS[r][0][1]&&TABS[r][0][0];go(tab)}
+function go(t,c){tab=t;cur=c||null;
+ document.getElementById('nav').innerHTML=TABS[role].map(x=>`<button class="${x[0]==t?'on':''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
+ const v={dash,clients,client,sched,emar,inc,staff,docs,fin,rep,ai,myday}[t];
+ document.getElementById('main').innerHTML='<div class="banner">Training replica for practice only. All names and data are fictional. Data stays in this browser.</div>'+v();window.scrollTo(0,0)}
+function modal(html){const m=document.createElement('div');m.className='modal';m.id='mdl';m.innerHTML='<div>'+html+'</div>';m.onclick=e=>{if(e.target==m)m.remove()};document.body.appendChild(m)}
+const closeM=()=>document.getElementById('mdl')?.remove();
+// ---------- alerts ----------
+function alerts(){
+ const t=today(),A=[];
+ S.visits.filter(v=>v.date==t&&v.status=='planned'&&endT(v.start,v.dur)<new Date().toTimeString().slice(0,5)).forEach(v=>A.push(['r',`Missed / not started: ${cl(v.cid).ini} ${v.start} (${st(v.sid).name})`]));
+ S.visits.filter(v=>v.date>=t&&v.date<=addDays(t,3)&&!v.sid).forEach(v=>A.push(['a',`Unassigned visit: ${cl(v.cid).ini} ${v.date} ${v.start}`]));
+ S.mar.filter(m=>!m.code).forEach(m=>A.push(['r',`MAR gap: ${cl(S.meds.find(x=>x.id==m.mid).cid).ini} ${S.meds.find(x=>x.id==m.mid).name} ${m.date} ${m.time}`]));
+ S.staff.forEach(s=>{Object.entries(s.training).forEach(([k,d])=>{if(d<t)A.push(['r',`${s.ini}: ${k} training expired ${d}`]);else if(d<=addDays(t,30))A.push(['a',`${s.ini}: ${k} due ${d}`])});
+  if(s.dbs<t)A.push(['r',`${s.ini}: DBS check overdue`]);else if(s.dbs<=addDays(t,30))A.push(['a',`${s.ini}: DBS renewal due ${s.dbs}`])});
+ S.clients.forEach(c=>{if(c.planReview<t)A.push(['r',`${c.ini}: care plan review overdue (${c.planReview})`]);else if(c.planReview<=addDays(t,30))A.push(['a',`${c.ini}: care plan review due ${c.planReview}`])});
+ S.incidents.filter(i=>i.status=='Open').forEach(i=>A.push(['a',`Open incident: ${cl(i.cid).ini} – ${i.type} (${i.date})`]));
+ S.docs.forEach(d=>{if(d.review<t)A.push(['a',`Document review overdue: ${d.title}`])});
+ return A}
+const mustScore=c=>c.must.bmi+c.must.wl+c.must.acute;
+// ---------- dashboard ----------
+function dash(){const t=today(),tv=S.visits.filter(v=>v.date==t),A=alerts();
+ const done=tv.filter(v=>v.status=='done').length,prog=tv.filter(v=>v.status=='inprogress').length;
+ return `<div class="grid">
+ <div class="card"><div class="kpi">${tv.length}<small>Visits today</small></div></div>
+ <div class="card"><div class="kpi">${done}<small>Completed</small></div></div>
+ <div class="card"><div class="kpi">${prog}<small>In progress</small></div></div>
+ <div class="card"><div class="kpi" style="color:var(--r)">${A.filter(a=>a[0]=='r').length}<small>Urgent alerts</small></div></div>
+ <div class="card"><div class="kpi" style="color:var(--a)">${A.filter(a=>a[0]=='a').length}<small>Upcoming / attention</small></div></div>
+ <div class="card"><div class="kpi">${S.visits.filter(v=>v.date>=t&&!v.sid).length}<small>Unassigned visits</small></div></div></div>
+ <div class="card"><h2>Alerts</h2>${A.map(a=>`<div class="alert ${a[0]=='a'?'warn':''}">${a[1]}</div>`).join('')||'<div class="alert ok">All clear</div>'}</div>
+ <div class="card"><h2>Today’s visits (live)</h2>${visTable(tv)}</div>`}
+function visTable(list){list=[...list].sort((a,b)=>a.start.localeCompare(b.start));
+ return `<table><tr><th>Time</th><th>Client</th><th>Carer</th><th>Status</th><th>Check in/out</th></tr>${list.map(v=>`<tr><td>${v.start}–${endT(v.start,v.dur)}</td><td><a href="#" onclick="go('client','${v.cid}');return false">${cl(v.cid).ini}</a></td><td>${st(v.sid).name}</td><td>${vstat(v)}</td><td>${v.in||'–'} / ${v.out||'–'}</td></tr>`).join('')||'<tr><td colspan=5 class="muted">No visits</td></tr>'}</table>`}
+const vstat=v=>v.status=='done'?pill('Done','g'):v.status=='inprogress'?pill('In progress','b'):v.status=='missed'?pill('Missed','r'):pill('Planned','');
+// ---------- clients ----------
+function clients(){let list=S.clients;
+ if(role=='carer')list=S.clients.filter(c=>S.visits.some(v=>v.cid==c.id&&v.sid==carerId));
+ return `<div class="card"><h2>Clients <button class="btn sm right noprint" onclick="addClient()">+ Add client</button></h2><table><tr><th>Client</th><th>Conditions</th><th>Risks</th><th>Plan review</th><th>MUST</th></tr>
+ ${list.map(c=>`<tr onclick="go('client','${c.id}')" style="cursor:pointer"><td><b>${c.name}</b><br><span class="muted">${c.age}</span></td><td>${c.cond}</td><td>${c.risks.join(', ')}</td><td>${dstat(c.planReview)}</td><td>${mustScore(c)>=2?pill('High '+mustScore(c),'r'):mustScore(c)==1?pill('Med 1','a'):pill('Low','g')}</td></tr>`).join('')}</table></div>`}
+function addClient(){modal(`<h3>Add client (dummy only)</h3><label>Initials</label><input id="n1"><label>Display name</label><input id="n2"><label>Age</label><input id="n3" type="number"><label>Conditions</label><input id="n4"><br><br><button class="btn" onclick="S.clients.push({id:uid(),ini:n1.value,name:n2.value,age:n3.value,cond:n4.value,plan:'',risks:[],prof:{mobility:'',diet:'',allergy:''},rate:22.5,planReview:addDays(today(),90),must:{bmi:0,wl:0,acute:0},contact:''});log('Added client '+n1.value);closeM();go('clients')">Save</button>`)}
+function client(){const c=cl(cur),t=today();
+ const vs=S.visits.filter(v=>v.cid==c.id&&v.date<=t&&v.notes).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+ const ms=S.meds.filter(m=>m.cid==c.id),ii=S.incidents.filter(i=>i.cid==c.id);
+ return `<button class="btn s sm" onclick="go('clients')">← Back</button>
+ <div class="card"><h2>${c.name} <span class="muted">(${c.ini}, ${c.age})</span></h2>
+ <div class="row"><div><b>Conditions</b><br>${c.cond}</div><div><b>Mobility</b><br>${c.prof.mobility}</div><div><b>Diet</b><br>${c.prof.diet}</div><div><b>Allergies</b><br>${c.prof.allergy}</div></div>
+ <p><b>Risks:</b> ${c.risks.map(r=>pill(r,'a')).join(' ')||'None'}</p></div>
+ <div class="card"><h3>Person-centred care plan ${role!='carer'?`<button class="btn sm s right noprint" onclick="editPlan('${c.id}')">Edit</button>`:''}</h3><p>${c.plan||'<span class=muted>No plan yet</span>'}</p><p class="muted">Review: ${dstat(c.planReview)} <button class="btn sm s" onclick="reviewPlan('${c.id}')">Mark reviewed</button></p></div>
+ <div class="card"><h3>MUST nutrition screening</h3><div class="row"><div><label>BMI score (0: >20, 1: 18.5–20, 2: <18.5)</label><select onchange="setMust('${c.id}','bmi',+this.value)">${[0,1,2].map(n=>`<option ${c.must.bmi==n?'selected':''}>${n}</option>`)}</select></div><div><label>Weight loss (0: <5%, 1: 5–10%, 2: >10%)</label><select onchange="setMust('${c.id}','wl',+this.value)">${[0,1,2].map(n=>`<option ${c.must.wl==n?'selected':''}>${n}</option>`)}</select></div><div><label>Acute illness (0 no, 2 yes)</label><select onchange="setMust('${c.id}','acute',+this.value)">${[0,2].map(n=>`<option ${c.must.acute==n?'selected':''}>${n}</option>`)}</select></div></div>
+ <p>Total: <b>${mustScore(c)}</b> – ${mustScore(c)>=2?'High risk: treat, refer dietitian':mustScore(c)==1?'Medium risk: observe':'Low risk: routine care'}</p></div>
+ <div class="card"><h3>Medication</h3>${ms.map(m=>`<div>${m.name} – ${m.dose} @ ${m.times.join(', ')}</div>`).join('')||'<span class=muted>None</span>'}</div>
+ <div class="card"><h3>Recent care notes</h3>${vs.map(v=>`<div class="tl"><b>${v.date} ${v.start}</b> · ${st(v.sid).name}<br>${v.notes}</div>`).join('')||'<span class=muted>None</span>'}</div>
+ <div class="card"><h3>Incidents</h3>${ii.map(i=>`<div class="alert warn">${i.date} ${i.type} (${i.sev}) – ${i.desc}</div>`).join('')||'<span class=muted>None</span>'}</div>
+ <div class="card"><h3>Contact (dummy)</h3>${c.contact}</div>`}
+function setMust(id,k,v){cl(id).must[k]=v;log('MUST updated '+cl(id).ini);save();go('client',id)}
+function editPlan(id){modal(`<h3>Edit care plan</h3><textarea id="pl" rows=6>${cl(id).plan}</textarea><br><br><button class="btn" onclick="cl('${id}').plan=pl.value;log('Care plan edited '+cl('${id}').ini);closeM();go('client','${id}')">Save</button>`)}
+function reviewPlan(id){cl(id).planReview=addDays(today(),90);log('Care plan reviewed '+cl(id).ini);go('client',id)}
+// ---------- schedule ----------
+function sched(){const list=S.visits.filter(v=>v.date==sday);
+ const rows=S.staff.filter(s=>s.role!='Coordinator').map(s=>{const mine=list.filter(v=>v.sid==s.id).sort((a,b)=>a.start.localeCompare(b.start));
+  return `<div class="card"><b>${s.name}</b> <span class="muted">${s.role} · ${mine.length} visits</span>${mine.map(v=>visCard(v)).join('')||'<div class="muted">No visits</div>'}</div>`}).join('');
+ const un=list.filter(v=>!v.sid);
+ return `<div class="card noprint"><div class="row"><div><label>Day</label><input type="date" value="${sday}" onchange="sday=this.value;go('sched')"></div><div style="align-self:end"><button class="btn" onclick="addVisit()">+ Add visit</button> <button class="btn s" onclick="suggest()">✨ Suggest cover for unassigned</button></div></div></div>
+ <div class="card"><h2>Unassigned (${un.length})</h2>${un.map(v=>visCard(v)).join('')||'<span class=muted>None</span>'}</div>${rows}`}
+function visCard(v){return `<div class="vis"><b>${v.start}–${endT(v.start,v.dur)}</b> · ${cl(v.cid).ini} · ${vstat(v)}<br><span class="muted">${v.tasks.join(', ')}</span><br>
+ <select onchange="assign('${v.id}',this.value)" class="noprint" style="width:auto"><option value="">Unassigned</option>${S.staff.filter(s=>s.role!='Coordinator').map(s=>`<option value="${s.id}" ${v.sid==s.id?'selected':''}>${s.name}${clash(v,s.id)?' ⚠ clash':''}</option>`).join('')}</select>
+ <button class="btn sm d noprint" onclick="delV('${v.id}')">Delete</button></div>`}
+function clash(v,sid){return S.visits.some(o=>o.id!=v.id&&o.sid==sid&&o.date==v.date&&o.start<endT(v.start,v.dur)&&endT(o.start,o.dur)>v.start)}
+function assign(id,sid){const v=S.visits.find(x=>x.id==id);if(sid&&clash(v,sid)&&!confirm('Clash with another visit. Assign anyway?')){go('sched');return}
+ const sf=S.staff.find(s=>s.id==sid);if(sf&&Object.values(sf.training).some(d=>d<today())&&!confirm(sf.name+' has EXPIRED training. Assign anyway?')){go('sched');return}
+ v.sid=sid||null;log('Visit assigned '+cl(v.cid).ini+' → '+st(sid).ini);go('sched')}
+function delV(id){S.visits=S.visits.filter(v=>v.id!=id);log('Visit deleted');go('sched')}
+function addVisit(){modal(`<h3>Add visit</h3><label>Client</label><select id="v1">${S.clients.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select><label>Start</label><input id="v2" type="time" value="09:00"><label>Duration (min)</label><input id="v3" type="number" value="30"><label>Tasks (comma separated)</label><input id="v4" value="Personal care"><br><br><button class="btn" onclick="S.visits.push({id:uid(),cid:v1.value,date:sday,start:v2.value,dur:+v3.value,sid:null,tasks:v4.value.split(',').map(x=>x.trim()),status:'planned',in:null,out:null,notes:''});log('Visit added');closeM();go('sched')">Save</button>`)}
+function suggest(){const un=S.visits.filter(v=>v.date==sday&&!v.sid);let n=0;
+ un.forEach(v=>{const ok=S.staff.filter(s=>s.role!='Coordinator'&&!clash(v,s.id)&&!Object.values(s.training).some(d=>d<today()));
+  ok.sort((a,b)=>S.visits.filter(x=>x.date==sday&&x.sid==a.id).length-S.visits.filter(x=>x.date==sday&&x.sid==b.id).length);
+  if(ok[0]){v.sid=ok[0].id;n++}});log('Suggested cover applied: '+n);alert(n+' visit(s) assigned to the least-busy, compliant, available carer. Review before confirming.');go('sched')}
+// ---------- carer mobile ----------
+function myday(){const list=S.visits.filter(v=>v.date==today()&&v.sid==carerId).sort((a,b)=>a.start.localeCompare(b.start));
+ return `<div class="card"><label>Signed in as (practice)</label><select onchange="carerId=this.value;go('myday')">${S.staff.filter(s=>s.role!='Coordinator').map(s=>`<option value="${s.id}" ${s.id==carerId?'selected':''}>${s.name}</option>`)}</select></div>
+ ${list.map(v=>{const c=cl(v.cid);return `<div class="card"><b>${v.start}–${endT(v.start,v.dur)} · ${c.name}</b> ${vstat(v)}<br><span class="muted">${c.risks.join(' · ')} | Allergy: ${c.prof.allergy}</span><p>${c.plan}</p>
+ ${v.status=='planned'?`<button class="btn" onclick="checkin('${v.id}')">Check in</button>`:''}
+ ${v.status=='inprogress'?`<h3>Tasks</h3>${v.tasks.map((t,i)=>`<label style="font-size:15px;color:#222"><input type="checkbox" style="width:auto"> ${t}</label>`).join('')}<label>Visit note</label><textarea id="n_${v.id}" rows=3 placeholder="What happened? Mood, food/fluids, concerns"></textarea><br><br><button class="btn" onclick="checkout('${v.id}')">Check out</button>`:''}
+ ${v.status=='done'?`<p>${v.notes}</p>`:''}</div>`}).join('')||'<div class="card">No visits today.</div>'}`}
+function checkin(id){const v=S.visits.find(x=>x.id==id);v.status='inprogress';v.in=new Date().toTimeString().slice(0,5);log('Check-in '+cl(v.cid).ini);go('myday')}
+function checkout(id){const v=S.visits.find(x=>x.id==id);const n=document.getElementById('n_'+id).value;if(!n.trim()){alert('Please add a visit note.');return}
+ v.notes=n;v.status='done';v.out=new Date().toTimeString().slice(0,5);log('Check-out '+cl(v.cid).ini);go('myday')}
+// ---------- eMAR ----------
+function emar(){const t=today();
+ let meds=S.meds;if(role=='carer')meds=meds.filter(m=>S.visits.some(v=>v.cid==m.cid&&v.sid==carerId));
+ const codes=['Given','Refused','Not available','Missed','Omitted (per GP)'];
+ return `<div class="card"><h2>Electronic MAR – ${t} <button class="btn sm right noprint" onclick="addMed()">+ Add medication</button></h2>
+ ${meds.map(m=>`<div class="vis"><b>${cl(m.cid).ini} – ${m.name}</b> ${m.dose} (${m.route})
+ ${m.times.map(tm=>{const r=S.mar.find(x=>x.mid==m.id&&x.date==t&&x.time==tm);
+  return `<div>${tm}: ${r?(r.code?pill(r.code,r.code=='Given'?'g':'r'):pill('GAP – not recorded','r')):`<select onchange="recMar('${m.id}','${tm}',this.value)"><option value="">Record…</option>${codes.map(c=>`<option>${c}</option>`)}</select>`}</div>`}).join('')}</div>`).join('')}</div>
+ <div class="card"><h3>Missed / gap history</h3>${S.mar.filter(x=>!x.code||['Missed','Refused'].includes(x.code)).map(x=>{const m=S.meds.find(y=>y.id==x.mid);return `<div class="alert">${x.date} ${x.time} – ${cl(m.cid).ini} ${m.name}: ${x.code||'NOT RECORDED'} <button class="btn sm s noprint" onclick="fixMar('${x.id}')">Resolve</button></div>`}).join('')||'<div class="alert ok">No gaps</div>'}</div>`}
+function recMar(mid,tm,code){if(!code)return;S.mar.push({id:uid(),mid,date:today(),time:tm,code,by:role=='carer'?carerId:'s1',note:''});log('MAR '+code);go('emar')}
+function fixMar(id){const n=prompt('Explanation / action taken (e.g. GP contacted):');if(!n)return;const r=S.mar.find(x=>x.id==id);r.code='Given (late – '+n+')';r.note=n;log('MAR gap resolved');go('emar')}
+function addMed(){modal(`<h3>Add medication</h3><label>Client</label><select id="m1">${S.clients.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select><label>Name</label><input id="m2"><label>Dose</label><input id="m3"><label>Times (comma separated, 24h)</label><input id="m4" value="08:00"><br><br><button class="btn" onclick="S.meds.push({id:uid(),cid:m1.value,name:m2.value,dose:m3.value,route:'Oral',times:m4.value.split(',').map(x=>x.trim())});log('Med added');closeM();go('emar')">Save</button>`)}
+// ---------- incidents ----------
+function inc(){return `<div class="card"><h2>Incidents & body map <button class="btn sm right" onclick="addInc()">+ Report</button></h2>
+ ${S.incidents.map(i=>`<div class="vis"><b>${i.date} · ${cl(i.cid).ini} · ${i.type}</b> ${pill(i.sev,i.sev=='High'?'r':i.sev=='Medium'?'a':'g')} ${pill(i.status,i.status=='Open'?'r':'g')}<br>${i.desc}<br><span class="muted">Body areas: ${i.body.join(', ')||'–'} · By ${st(i.by).name}</span>
+ ${role!='carer'&&i.status=='Open'?`<br><button class="btn sm s" onclick="closeInc('${i.id}')">Close with outcome</button>`:''}</div>`).join('')}</div>`}
+const AREAS=['Head','Face','Neck','Left arm','Right arm','Chest','Back','Left leg','Right leg','Left knee','Right knee','Hip','Feet'];
+function addInc(){modal(`<h3>Report incident</h3><label>Client</label><select id="i1">${S.clients.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select><label>Type</label><select id="i2"><option>Fall</option><option>Medication error</option><option>Safeguarding concern</option><option>Skin injury</option><option>Missed visit</option><option>Complaint</option><option>Near miss</option></select><label>Severity</label><select id="i3"><option>Low</option><option>Medium</option><option>High</option></select><label>What happened?</label><textarea id="i4" rows=3></textarea><label>Body map (tap areas)</label><div id="bm">${AREAS.map(a=>`<button class="btn s sm" style="margin:2px" onclick="this.classList.toggle('on');this.style.background=this.classList.contains('on')?'#d64545':'';this.style.color=this.classList.contains('on')?'#fff':''">${a}</button>`).join('')}</div><p class="muted">Safeguarding concerns must be escalated to the manager / local authority per your policy – this app does not do that for you.</p><button class="btn" onclick="S.incidents.unshift({id:uid(),cid:i1.value,date:today(),type:i2.value,sev:i3.value,desc:i4.value,by:role=='carer'?carerId:'s1',status:'Open',body:[...document.querySelectorAll('#bm .on')].map(b=>b.textContent)});log('Incident reported');closeM();go('inc')">Submit</button>`)}
+function closeInc(id){const o=prompt('Outcome / lessons learned:');if(!o)return;const i=S.incidents.find(x=>x.id==id);i.status='Closed';i.desc+=' | Outcome: '+o;log('Incident closed');go('inc')}
+// ---------- staff ----------
+function staff(){return `<div class="card"><h2>Staff & compliance</h2><table><tr><th>Name</th><th>Role</th><th>Training</th><th>DBS renewal</th></tr>${S.staff.map(s=>`<tr><td>${s.name} (${s.ini})</td><td>${s.role}</td><td>${Object.entries(s.training).map(([k,d])=>`${k}: ${dstat(d)}`).join('<br>')}</td><td>${dstat(s.dbs)}</td></tr>`).join('')}</table><p class="muted">No DBS numbers or personal documents are stored – dates only.</p></div>`}
+// ---------- documents ----------
+function docs(){return `<div class="card"><h2>Documents, forms & policies <button class="btn sm right" onclick="addDoc()">+ Add</button></h2><table><tr><th>Title</th><th>Type</th><th>Version</th><th>Review</th></tr>${S.docs.map(d=>`<tr><td>${d.title}</td><td>${d.type}</td><td>${d.ver}</td><td>${dstat(d.review)}</td></tr>`).join('')}</table></div>`}
+function addDoc(){modal(`<h3>Add document</h3><label>Title</label><input id="d1"><label>Type</label><select id="d2"><option>Policy</option><option>Form</option><option>Template</option></select><label>Review date</label><input id="d3" type="date"><br><br><button class="btn" onclick="S.docs.push({id:uid(),title:d1.value,type:d2.value,ver:'v1.0',review:d3.value});log('Doc added');closeM();go('docs')">Save</button>`)}
+// ---------- invoicing ----------
+function fin(){const rows=S.clients.map(c=>{const vs=S.visits.filter(v=>v.cid==c.id&&v.status=='done');const mins=vs.reduce((a,v)=>a+v.dur,0);return {c,n:vs.length,mins,amt:mins/60*c.rate}});
+ return `<div class="card"><h2>Invoicing (from completed visits)</h2><table><tr><th>Client</th><th>Visits</th><th>Hours</th><th>Rate £/h</th><th>Total</th></tr>${rows.map(r=>`<tr><td>${r.c.ini}</td><td>${r.n}</td><td>${(r.mins/60).toFixed(1)}</td><td>${r.c.rate.toFixed(2)}</td><td><b>£${r.amt.toFixed(2)}</b></td></tr>`).join('')}<tr><td colspan=4><b>Total</b></td><td><b>£${rows.reduce((a,r)=>a+r.amt,0).toFixed(2)}</b></td></tr></table><button class="btn s" onclick="exportCSV()">Export CSV</button></div>`}
+function exportCSV(){const rows=[['Client','Visits','Hours','Total']];S.clients.forEach(c=>{const vs=S.visits.filter(v=>v.cid==c.id&&v.status=='done');const m=vs.reduce((a,v)=>a+v.dur,0);rows.push([c.ini,vs.length,(m/60).toFixed(1),(m/60*c.rate).toFixed(2)])});
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n').replace(/,/g,',')],{type:'text/csv'}));a.download='invoice-practice.csv';a.click()}
+// ---------- reports ----------
+function rep(){const A=alerts();return `<div class="card"><h2>Inspection-ready summary <button class="btn sm s right noprint" onclick="print()">Print</button></h2>
+ <div class="row"><div><b>${S.clients.length}</b><br>clients</div><div><b>${S.staff.length}</b><br>staff</div><div><b>${S.visits.filter(v=>v.status=='done').length}</b><br>visits evidenced</div><div><b>${S.incidents.length}</b><br>incidents</div></div>
+ <h3>Compliance</h3><p>Care plans in date: ${S.clients.filter(c=>c.planReview>=today()).length}/${S.clients.length}<br>Staff with all training in date: ${S.staff.filter(s=>Object.values(s.training).every(d=>d>=today())).length}/${S.staff.length}<br>MAR gaps: ${S.mar.filter(m=>!m.code).length}</p>
+ <h3>Open alerts</h3>${A.map(a=>`<div class="alert ${a[0]=='a'?'warn':''}">${a[1]}</div>`).join('')||'None'}</div>
+ <div class="card"><h2>Audit trail</h2><p class="muted">Practice log stored in this browser only. Not a secure or tamper-proof audit system.</p><table><tr><th>When</th><th>Role</th><th>Action</th></tr>${S.audit.slice(0,40).map(a=>`<tr><td>${a.t}</td><td>${a.role}</td><td>${a.a}</td></tr>`).join('')||'<tr><td colspan=3 class=muted>No actions yet</td></tr>'}</table></div>`}
+// ---------- AI assist (offline, rule-based) ----------
+function ai(){return `<div class="card"><h2>AI assist (simulated, rule-based)</h2><p class="muted">Practice version: no real AI or data leaves this page. It shows how summaries and pattern spotting work.</p>
+ <label>Client</label><select id="ac">${S.clients.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select><br><br><button class="btn" onclick="aiSum()">Summarise recent notes</button> <button class="btn s" onclick="aiPat()">Spot patterns across clients</button><div id="aiout" class="card" style="margin-top:10px"></div></div>`}
+function aiSum(){const c=cl(ac.value),vs=S.visits.filter(v=>v.cid==c.id&&v.notes);const inc=S.incidents.filter(i=>i.cid==c.id);
+ aiout.innerHTML=`<b>${c.ini} summary</b><br>${vs.length} completed visits with notes. ${inc.length?inc.length+' incident(s), latest: '+inc[0].type+' on '+inc[0].date+'.':'No incidents.'} Risks: ${c.risks.join(', ')}. Care plan review ${c.planReview<today()?'OVERDUE':'due '+c.planReview}. MUST score ${mustScore(c)}.<br><span class="muted">Generated by rules for practice – always check the full record.</span>`}
+function aiPat(){const out=[];const byType={};S.incidents.forEach(i=>byType[i.type]=(byType[i.type]||0)+1);Object.entries(byType).forEach(([k,n])=>out.push(`${n} × ${k} incident(s) recorded`));
+ const fallers=S.clients.filter(c=>c.risks.includes('Falls')).map(c=>c.ini);out.push('Clients with fall risk: '+fallers.join(', '));
+ out.push(S.mar.filter(m=>!m.code).length+' unrecorded medication doses need review');
+ out.push('Carers with expired training: '+(S.staff.filter(s=>Object.values(s.training).some(d=>d<today())).map(s=>s.ini).join(', ')||'none'));
+ aiout.innerHTML='<ul>'+out.map(o=>`<li>${o}</li>`).join('')+'</ul>'}
+go('dash');
+</script></body></html>
